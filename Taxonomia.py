@@ -146,7 +146,7 @@ class MyWidget(QWidget):
                 self.text_edit.append("CONGRATS, YOU DID IT!! (moron)")
                 self.text_edit.append("It took you " + str(self.tries) + " tries")
         else:
-            self.text_edit.append("SRY, NOT FOUND")
+            self.text_edit.append("not found. Please write a capitalized, scientific genus name")
 
     def on_giveup(self):
         self.text_edit.append("---------------------")
