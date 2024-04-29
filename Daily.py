@@ -6,7 +6,7 @@ import discord
 import taxoniq
 from discord.ext import tasks
 
-token = input("please input bot token:")
+token = "MTA1OTA5NTA3NzU2NzM0ODc5Ng.Gk9aBz.l_yWnjITlwT0oxHoqTVh52_GW64HqOd4pCYp6E"
 channel_id = 1234513123436920913
 
 intents = discord.Intents.default()
