@@ -23,10 +23,12 @@ class DialogWindow(QDialog):
         self.vert_layout.addLayout(self.horizontal_layout)
 
         self.line_edit = QLineEdit()
+        self.line_edit.textChanged.connect(self.on_line_update)
         self.horizontal_layout.addWidget(self.line_edit)
 
-        self.button = QPushButton('Enter daily code')
+        self.button = QPushButton('Enter genus-code')
         self.button.setShortcut(QKeySequence(Qt.Key_Return))
+        self.button.setDisabled(True)
         self.button.clicked.connect(self.on_enter)
         self.horizontal_layout.addWidget(self.button)
 
@@ -35,11 +37,14 @@ class DialogWindow(QDialog):
         self.vert_layout.addWidget(self.random_button)
 
         self.setLayout(self.vert_layout)
-    def on_enter(self):
+    def on_line_update(self):
         try:
             self.target = taxoniq.Taxon(sqrt(int(self.line_edit.text())))
+            if self.target.rank == taxoniq.Rank.genus:
+                self.button.setDisabled(False)
         except:
-            pass
+            self.button.setDisabled(True)
+    def on_enter(self):
         self.close()
     def on_random(self):
         done = False
@@ -71,10 +76,12 @@ class MyWidget(QWidget):
         self.horizontal_layout = QHBoxLayout()
 
         self.line_edit = QLineEdit()
+        self.line_edit.textChanged.connect(self.on_text_update)
         self.horizontal_layout.addWidget(self.line_edit)
 
         self.button = QPushButton('Enter')
         self.button.setShortcut(QKeySequence(Qt.Key_Return))
+        self.button.setDisabled(True)
         self.button.clicked.connect(self.on_enter)
         self.horizontal_layout.addWidget(self.button)
 
@@ -109,14 +116,19 @@ class MyWidget(QWidget):
             self.close()
             exit()
 
-    def on_enter(self):
-        self.text_edit.append("---------------------")
+    def on_text_update(self):
         guess_text = self.line_edit.text()
         guess_species = None
         try:
             guess_species = taxoniq.Taxon(scientific_name=guess_text)
+            self.button.setDisabled(False)
         except:
-            pass
+            self.button.setDisabled(True)
+    def on_enter(self):
+        self.text_edit.append("---------------------")
+        guess_text = self.line_edit.text()
+        self.line_edit.clear()
+        guess_species = taxoniq.Taxon(scientific_name=guess_text)
         if guess_species:
             self.tries += 1
             self.text_edit.append("Try " + str(self.tries) + ": " + guess_text)
