@@ -17,8 +17,14 @@ from PyQt5.QtGui import QKeySequence, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest
 
 def lowest_commonality(taxon1, taxon2):
-    pass
-
+    ind = 0
+    for tax1, tax2 in zip(reversed(taxon1.lineage), reversed(taxon2.lineage)):
+        if not tax1 == tax2:
+            break
+        ind += 1
+    correct = list(reversed(taxon1.lineage))[:ind]
+    wrong = list(reversed(taxon1.lineage))[ind:]
+    return (correct, wrong)
 def taxon_to_message(taxon):
     try:
         guess_message = f"{str(taxon.rank)[5:]}: {taxon.scientific_name} ({taxon.common_name})"
@@ -30,7 +36,6 @@ def str_with_plus(num):
         return '+' + str(num)
     else:
         return str(num)
-
 def get_image_hint(taxon):
     try:
         name = taxon.common_name
@@ -40,6 +45,44 @@ def get_image_hint(taxon):
     if observations:
         image_url = observations[randint(0, len(observations)-1)]["taxon"]["default_photo"]["medium_url"]
         return image_url
+def tx(item):
+    text = item.text(0)
+    without_rank = text.split(": ")[-1]
+    without_common = without_rank.split(" (")[0]
+    try:
+        return taxoniq.Taxon(scientific_name=without_common)
+    except:
+        return taxoniq.Taxon(tax_id=sqrt(int(without_common)))
+def iterate(guess_item, compare_item):
+    correct, wrong = lowest_commonality(tx(guess_item), tx(compare_item))
+    if correct[-1] == tx(compare_item):
+        if compare_item.childCount():
+            for i in range(compare_item.childCount()):
+                print()
+                inbetween = iterate(guess_item, compare_item.child(i))
+                if inbetween:
+                    if isinstance(inbetween, QTreeWidgetItem):
+                        return inbetween
+                    else:
+                        if not inbetween == tx(compare_item):
+                            new_item = QTreeWidgetItem([taxon_to_message(inbetween)])
+                            new_item.addChild(guess_item)
+                            new_item.addChild(compare_item.takeChild(i))
+                            compare_item.addChild(new_item)
+                            new_item.setExpanded(True)
+                            compare_item.setExpanded(True)
+                            return new_item
+        else:
+            compare_item.addChild(guess_item)
+            compare_item.setExpanded(True)
+    elif correct[-1] == tx(guess_item):
+        compare_item.parent().addChild(guess_item)
+        compare_item.parent().removeChild(compare_item)
+        guess_item.addChild(compare_item)
+        guess_item.parent().setExpanded(True)
+        guess_item.setExpanded(True)
+    else:
+        return correct[-1]
 
 class OpeningDialog(QDialog):
     def __init__(self):
@@ -133,8 +176,6 @@ class WinDialog(QDialog):
         message += "</table>"
         self.text_edit.setText(message)
         self.setGeometry(600, 200, 600, 600)
-
-
     def copy_score(self):
         # self.adjustSize()
         table = tabulate(self.try_list, headers=["Try Nr.", "Tried Name", "Commonality", "Accuracy", "Progress"])
@@ -167,7 +208,7 @@ class HintDialog(QDialog):
         self.image_label.setPixmap(pixmap)
         self.vert_layout.addWidget(self.image_label)
 
-class MyWidget(QWidget):
+class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Taxonomia")
@@ -214,12 +255,6 @@ class MyWidget(QWidget):
         self.wiki_button.clicked.connect(self.open_wiki)
         self.vert_layout.addWidget(self.wiki_button)
 
-        self.tree = QTreeWidget()
-        self.tree.setHeaderLabel("Tree view")
-        self.tree_items = [QTreeWidgetItem(["Root"])]
-        self.tree.insertTopLevelItems(0, self.tree_items)
-        self.main_layout.addWidget(self.tree)
-
         self.setLayout(self.main_layout)
         self.setGeometry(600, 200, 700, 700)
 
@@ -231,6 +266,17 @@ class MyWidget(QWidget):
             self.close()
             exit()
 
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabel("Tree view")
+        self.main_layout.addWidget(self.tree)
+
+        self.root = QTreeWidgetItem(["root"])
+        self.root.addChild(QTreeWidgetItem([str(self.target.tax_id**2)]))
+        self.tree.insertTopLevelItems(0, [self.root])
+        self.tree.itemCollapsed.connect(self.on_item_collapsed)
+
+    def on_item_collapsed(item):
+        item.setExpanded(True)
     def on_text_update(self):
         guess_text = self.line_edit.text()
         guess_species = None
@@ -241,46 +287,37 @@ class MyWidget(QWidget):
             self.enter_button.setDisabled(True)
     def on_enter(self):
         self.text_edit.append("---------------------")
-        guess_text = self.line_edit.text()
+        guess = taxoniq.Taxon(scientific_name=self.line_edit.text())
         self.line_edit.clear()
-        guess_species = taxoniq.Taxon(scientific_name=guess_text)
-        if guess_species:
-            self.tries += 1
-            self.text_edit.append("Try " + str(self.tries) + ": " + guess_text)
-            ind = 0
-            for target_clade, guess_clade in zip(reversed(guess_species.lineage), reversed(self.target.lineage)):
-                if target_clade.scientific_name == guess_clade.scientific_name:
-                    self.text_edit.append(taxon_to_message(guess_clade))
-                    self.last_correct = guess_clade
-                    self.last_ind = ind
-                    if not self.last_correct == self.target:
-                        self.next_correct = list(reversed(self.target.lineage))[ind + 1]
-                else:
-                    break
-                ind += 1
-            accuracy_message = f"{str(len(self.last_correct.lineage))}/{str(len(self.target.lineage))}"
-            self.try_list.append([str(self.tries), taxon_to_message(guess_species), taxon_to_message(self.last_correct), accuracy_message, str_with_plus(ind - self.last_accuracy)])
-            if ind > self.last_accuracy:
-                self.last_accuracy = ind
-            try:
-                self.text_edit.append(self.last_correct.description)
-            except:
-                pass
+        self.tries += 1
+        self.text_edit.append("Try " + str(self.tries) + ": " + taxon_to_message(guess))
 
-            new_tree_item = QTreeWidgetItem([self.last_correct.scientific_name])
-            self.tree_items[-1].addChild(new_tree_item)
-            self.tree_items.append(new_tree_item)
+        correct, wrong = lowest_commonality(self.target, guess)
+        self.text_edit.append("\n".join([taxon_to_message(tax) for tax in correct]))
+        self.last_correct = correct[-1]
+        if wrong:
+            self.next_correct = wrong[0]
+        self.last_ind = len(correct)-1
 
-            self.text_edit.append(f"accuracy: {accuracy_message} {str(self.last_correct.rank)[5:]}")
+        guess_item = QTreeWidgetItem([taxon_to_message(guess)])
+        new_item = iterate(guess_item, self.root)
 
-            if self.target == self.last_correct:
-                self.text_edit.append("CONGRATS, YOU DID IT!! (moron)")
-                self.text_edit.append("It took you " + str(self.tries) + " tries")
-                self.dialog = WinDialog(self.try_list, self.target)
-                self.dialog.exec()
-        else:
-            self.text_edit.append("not found. Please write a capitalized, scientific genus name")
+        accuracy_message = f"{str(len(self.last_correct.lineage))}/{str(len(self.target.lineage))}"
+        self.try_list.append([str(self.tries), taxon_to_message(guess), taxon_to_message(self.last_correct), accuracy_message, str_with_plus(self.last_ind - self.last_accuracy)])
+        if self.last_ind > self.last_accuracy:
+            self.last_accuracy = self.last_ind
+        try:
+            self.text_edit.append(self.last_correct.description)
+        except:
+            pass
 
+        self.text_edit.append(f"accuracy: {accuracy_message} {str(self.last_correct.rank)[5:]}")
+
+        if self.target == self.last_correct:
+            self.text_edit.append("CONGRATS, YOU DID IT!! (moron)")
+            self.text_edit.append("It took you " + str(self.tries) + " tries")
+            self.dialog = WinDialog(self.try_list, self.target)
+            self.dialog.exec()
     def on_giveup(self):
         self.text_edit.append("---------------------")
         self.text_edit.append(f"genus-code: {str(self.target.tax_id ** 2)}")
@@ -313,11 +350,12 @@ class MyWidget(QWidget):
             self.try_list.append([f"{str(self.tries)}-{str(self.tries + 2)}", "image hint", taxon_to_message(self.last_correct), accuracy_message, "0"])
             self.tries += 2
             self.dialog = HintDialog(self.last_correct.scientific_name, str(self.next_correct.rank)[5:], image_url)
-            self.dialog.exec()
+            self.dialog.setWindowModality(Qt.NonModal)
+            self.dialog.show()
         else:
             self.text_edit.append("sry, no images available")
 
 app = QApplication(sys.argv)
-widget = MyWidget()
+widget = MainWindow()
 widget.show()
 sys.exit(app.exec_())
