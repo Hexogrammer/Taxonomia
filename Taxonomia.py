@@ -1,16 +1,34 @@
 import taxoniq
 from random import randint
+import xerox
+import sys
+from math import sqrt
+from time import sleep
+from tabulate import tabulate
 
 import wikipedia
 import webbrowser
 
-import sys
-from math import sqrt
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QKeySequence
 
-class DialogWindow(QDialog):
+def lowest_commonality(taxon1, taxon2):
+    pass
+
+def taxon_to_message(taxon):
+    try:
+        guess_message = f"{str(taxon.rank)[5:]}: {taxon.scientific_name} ({taxon.common_name})"
+    except:
+        guess_message = f"{str(taxon.rank)[5:]}: {taxon.scientific_name}"
+    return guess_message
+def str_with_plus(num):
+    if num > 0:
+        return '+' + str(num)
+    else:
+        return str(num)
+
+class OpeningDialog(QDialog):
     def __init__(self):
         super().__init__()
 
@@ -61,12 +79,73 @@ class DialogWindow(QDialog):
                 done = False
         self.close()
 
+class WinDialog(QDialog):
+    def __init__(self, try_list, solution):
+        super().__init__()
+        self.setWindowTitle("Taxonomia")
+        self.vert_layout = QVBoxLayout()
+        self.setLayout(self.vert_layout)
+
+        self.try_list = try_list
+        self.solution = solution
+
+        self.text_edit = QTextEdit()
+        self.text_edit.setReadOnly(True)
+        self.text_edit.setLineWrapMode(QTextEdit.NoWrap)
+        self.vert_layout.addWidget(self.text_edit)
+
+        self.copy_button = QPushButton("Share on Discord")
+        self.copy_button.setStyleSheet("background-color: #f0f0f0; color: #000000; border: 1px solid #808080;")
+        self.copy_button.pressed.connect(self.copy_score)
+        self.vert_layout.addWidget(self.copy_button)
+
+        message = f"""<table style="border: 1px solid black; border-collapse: collapse;">
+                    <caption style="font-size: 40px; font-weight: bold;" align="center">You Win!</caption>
+                    <p align="center">You needed {len(self.try_list)} tries.</p>
+                      <tr>
+                        <th style="border: 1px solid black; padding: 8px;">Try Nr.</th>
+                        <th style="border: 1px solid black; padding: 8px;">Tried Name</th>
+                        <th style="border: 1px solid black; padding: 8px;">Commonality</th>
+                        <th style="border: 1px solid black; padding: 8px;">Accuracy</th>
+                        <th style="border: 1px solid black; padding: 8px;">Progress</th>
+                      </tr>"""
+        for try_set in try_list:
+            message += "<tr>"
+            for element in try_set:
+                if try_set == try_list[-1]:
+                    message += f"""<td style="border: 1px solid black; padding: 8px;"><b>{element}</b></td>"""
+                else:
+                    message += f"""<td style="border: 1px solid black; padding: 8px;">{element}</td>"""
+            message += "</tr>"
+        message += "</table>"
+        self.text_edit.setText(message)
+        self.setGeometry(600, 200, 600, 600)
+
+
+    def copy_score(self):
+        # self.adjustSize()
+        table = tabulate(self.try_list, headers=["Try Nr.", "Tried Name", "Commonality", "Accuracy", "Progress"])
+        genus_code = str(self.solution.tax_id**2)
+        message = f"""I won Taxonomia!!! 
+genus-code: **{genus_code}**
+It took me **{len(self.try_list)} tries**. can you beat me?
+Download [Taxonomia on Github](https://github.com/Hexogrammer/Taxonomia)
+
+Guess history:
+||`{table}`||"""
+        xerox.copy(message, xsel=True)
+        self.copy_button.setText("Copied")
+        self.copy_button.setDisabled(True)
+        QTimer.singleShot(1000, lambda: [self.copy_button.setText("Share on Discord"), self.copy_button.setDisabled(False)])
 class MyWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Taxonomia")
 
         self.tries = 0
+        self.try_list = []
+        self.last_correct = None
+        self.last_accuracy = 1
 
         self.main_layout = QHBoxLayout()
 
@@ -108,7 +187,7 @@ class MyWidget(QWidget):
         self.setLayout(self.main_layout)
         self.setGeometry(600, 200, 700, 700)
 
-        self.dialog = DialogWindow()
+        self.dialog = OpeningDialog()
         self.dialog.exec()
         if self.dialog.target:
             self.target = self.dialog.target
@@ -136,13 +215,14 @@ class MyWidget(QWidget):
             for target_clade, guess_clade in zip(reversed(guess_species.lineage), reversed(self.target.lineage)):
                 ind += 1
                 if target_clade.scientific_name == guess_clade.scientific_name:
-                    try:
-                        self.text_edit.append(str(guess_clade.rank)[5:] + ": " + guess_clade.scientific_name + " " + "(" + guess_clade.common_name + ")")
-                    except:
-                        self.text_edit.append(str(guess_clade.rank)[5:] + ": " + guess_clade.scientific_name)
+                    self.text_edit.append(taxon_to_message(guess_clade))
                     self.last_correct = guess_clade
                 else:
                     break
+            accuracy_message = f"{str(len(self.last_correct.lineage))}/{str(len(self.target.lineage))}"
+            self.try_list.append([str(self.tries), taxon_to_message(guess_species), taxon_to_message(self.last_correct), accuracy_message, str_with_plus(ind - self.last_accuracy)])
+            if ind > self.last_accuracy:
+                self.last_accuracy = ind
             try:
                 self.text_edit.append(self.last_correct.description)
             except:
@@ -152,11 +232,13 @@ class MyWidget(QWidget):
             self.tree_items[-1].addChild(new_tree_item)
             self.tree_items.append(new_tree_item)
 
-            self.text_edit.append("accuracy: " + str(ind) + "/" + str(len(self.target.lineage)) + " " + str(self.last_correct.rank)[5:])
+            self.text_edit.append(f"accuracy: {accuracy_message} {str(self.last_correct.rank)[5:]}")
 
-            if self.target == guess_species:
+            if self.target == self.last_correct:
                 self.text_edit.append("CONGRATS, YOU DID IT!! (moron)")
                 self.text_edit.append("It took you " + str(self.tries) + " tries")
+                self.dialog = WinDialog(self.try_list, self.target)
+                self.dialog.exec()
         else:
             self.text_edit.append("not found. Please write a capitalized, scientific genus name")
 
@@ -168,11 +250,16 @@ class MyWidget(QWidget):
                 self.text_edit.append(str(taxon.rank)[5:] + ": " + taxon.scientific_name + " (" + taxon.common_name + ")")
             except:
                 self.text_edit.append(str(taxon.rank)[5:] + ": " + taxon.scientific_name)
+        self.dialog = WinDialog(self.try_list, self.target)
+        self.dialog.exec()
     def open_wiki(self):
         try:
             webbrowser.open(wikipedia.page(self.last_correct.scientific_name, auto_suggest=False).url)
         except:
-            webbrowser.open(self.last_correct.wikidata_url)
+            try:
+                webbrowser.open(self.last_correct.wikidata_url)
+            except:
+                self.text_edit.append("Sry, no Wiki article available")
 
 app = QApplication(sys.argv)
 widget = MyWidget()
