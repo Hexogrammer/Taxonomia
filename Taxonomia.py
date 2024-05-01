@@ -159,12 +159,11 @@ class WinDialog(QDialog):
 
         message = f"""<table style="border: 1px solid black; border-collapse: collapse;">
                     <caption style="font-size: 40px; font-weight: bold;" align="center">You Win!</caption>
-                    <p align="center">You needed {len(self.try_list)} tries.</p>
+                    <p align="center">Genus-code: {str(self.solution.tax_id**2)} \nYou needed {len(self.try_list)} tries.</p>
                       <tr>
                         <th style="border: 1px solid black; padding: 8px;">Try Nr.</th>
                         <th style="border: 1px solid black; padding: 8px;">Tried Name</th>
                         <th style="border: 1px solid black; padding: 8px;">Commonality</th>
-                        <th style="border: 1px solid black; padding: 8px;">Accuracy</th>
                         <th style="border: 1px solid black; padding: 8px;">Progress</th>
                       </tr>"""
         for try_set in try_list:
@@ -180,7 +179,7 @@ class WinDialog(QDialog):
         self.setGeometry(600, 200, 600, 600)
     def copy_score(self):
         # self.adjustSize()
-        table = tabulate(self.try_list, headers=["Try Nr.", "Tried Name", "Commonality", "Accuracy", "Progress"])
+        table = tabulate(self.try_list, headers=["Try Nr.", "Tried Name", "Commonality", "Progress"])
         genus_code = str(self.solution.tax_id**2)
         message = f"""I won Taxonomia!!! 
 genus-code: **{genus_code}**
@@ -276,7 +275,6 @@ class MainWindow(QWidget):
         self.root.addChild(QTreeWidgetItem([str(self.target.tax_id**2)]))
         self.tree.insertTopLevelItems(0, [self.root])
         self.tree.itemCollapsed.connect(self.on_item_collapsed)
-
     def on_item_collapsed(item):
         item.setExpanded(True)
     def on_text_update(self):
@@ -305,7 +303,7 @@ class MainWindow(QWidget):
         new_item = iterate(guess_item, self.root)
 
         accuracy_message = f"{str(len(self.last_correct.lineage))}/{str(len(self.target.lineage))}"
-        self.try_list.append([str(self.tries), taxon_to_message(guess), taxon_to_message(self.last_correct), accuracy_message, str_with_plus(self.last_ind - self.last_accuracy)])
+        self.try_list.append([str(self.tries), taxon_to_message(guess), taxon_to_message(self.last_correct), str_with_plus(self.last_ind - self.last_accuracy)])
         if self.last_ind > self.last_accuracy:
             self.last_accuracy = self.last_ind
         try:
@@ -348,8 +346,7 @@ class MainWindow(QWidget):
             self.text_edit.append("---------------------")
             self.tries += 1
             self.text_edit.append(f"Try {str(self.tries)}-{str(self.tries + 2)}: image hint")
-            accuracy_message = f"{str(len(self.last_correct.lineage))}/{str(len(self.target.lineage))}"
-            self.try_list.append([f"{str(self.tries)}-{str(self.tries + 2)}", "image hint", taxon_to_message(self.last_correct), accuracy_message, "0"])
+            self.try_list.append([f"{str(self.tries)}-{str(self.tries + 2)}", "image hint", taxon_to_message(self.last_correct), "0"])
             self.tries += 2
             self.dialog = HintDialog(self.last_correct.scientific_name, str(self.next_correct.rank)[5:], image_url)
             self.dialog.setWindowModality(Qt.NonModal)
