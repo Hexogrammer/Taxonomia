@@ -159,7 +159,7 @@ class HintDialog(QDialog):
         self.setWindowModality(Qt.NonModal)
         self.vert_layout = QVBoxLayout()
         self.setLayout(self.vert_layout)
-        self.vert_layout.addWidget(QLabel(f"Random species of the correct {next_correct_rank} (after {last_correct_name})."))
+        self.vert_layout.addWidget(QLabel(f"Random species of the correct {next_correct_rank} (after {last_correct_name}).\nNO IMAGE SEARCH!!!"))
 
         data = urllib.request.urlopen(image_url).read()
         pixmap = QPixmap()
