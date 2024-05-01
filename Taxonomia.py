@@ -222,9 +222,10 @@ class MainWindow(QWidget):
         self.last_accuracy = 1
 
         self.main_layout = QHBoxLayout()
-
         self.vert_layout = QVBoxLayout()
+        self.vert_layout2 = QVBoxLayout()
         self.main_layout.addLayout(self.vert_layout)
+        self.main_layout.addLayout(self.vert_layout2)
 
         self.horizontal_layout = QHBoxLayout()
 
@@ -248,13 +249,12 @@ class MainWindow(QWidget):
         self.text_edit.setReadOnly(True)
         self.vert_layout.addWidget(self.text_edit)
 
-        self.giveup_button = QPushButton("Give up (looser)")
-        self.giveup_button.clicked.connect(self.on_giveup)
-        self.vert_layout.addWidget(self.giveup_button)
+        self.description_box = QTextEdit()
+        self.description_box.setReadOnly(True)
 
-        self.wiki_button = QPushButton("Open on Wikipedia")
-        self.wiki_button.clicked.connect(self.open_wiki)
-        self.vert_layout.addWidget(self.wiki_button)
+        # self.giveup_button = QPushButton("Give up (looser)")
+        # self.giveup_button.clicked.connect(self.on_giveup)
+        # self.vert_layout.addWidget(self.giveup_button)
 
         self.setLayout(self.main_layout)
         self.setGeometry(600, 200, 700, 700)
@@ -269,7 +269,13 @@ class MainWindow(QWidget):
 
         self.tree = QTreeWidget()
         self.tree.setHeaderLabel("Tree view")
-        self.main_layout.addWidget(self.tree)
+        self.tree.itemSelectionChanged.connect(self.on_select)
+        self.vert_layout.addWidget(self.tree)
+        self.vert_layout2.addWidget(self.description_box)
+
+        self.wiki_button = QPushButton("Open on Wikipedia")
+        self.wiki_button.clicked.connect(self.open_wiki)
+        self.vert_layout2.addWidget(self.wiki_button)
 
         self.root = QTreeWidgetItem(["root"])
         self.root.addChild(QTreeWidgetItem([str(self.target.tax_id**2)]))
@@ -277,6 +283,17 @@ class MainWindow(QWidget):
         self.tree.itemCollapsed.connect(self.on_item_collapsed)
     def on_item_collapsed(item):
         item.setExpanded(True)
+    def on_select(self):
+        self.selection = tx(self.tree.selectedItems()[-1])
+        if self.selection == self.target:
+            self.selection = None
+            self.description_box.setText("<b>Unknown</b>\nGuess scientific Genus names to find out what hides behind this code")
+        else:
+            self.description_box.setText("\n".join([taxon_to_message(i) for i in reversed(self.selection.lineage)]))
+            try:
+                self.description_box.append(self.selection.description)
+            except:
+                pass
     def on_text_update(self):
         guess_text = self.line_edit.text()
         guess_species = None
