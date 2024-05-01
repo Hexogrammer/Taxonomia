@@ -72,6 +72,8 @@ def iterate(guess_item, compare_item):
                             new_item.setExpanded(True)
                             compare_item.setExpanded(True)
                             return new_item
+            compare_item.addChild(guess_item)
+            compare_item.setExpanded(True)
         else:
             compare_item.addChild(guess_item)
             compare_item.setExpanded(True)
