@@ -1,5 +1,5 @@
 from random import randint
-import xerox
+import clipboard
 import sys
 from math import sqrt
 from time import sleep
@@ -188,7 +188,7 @@ Download [Taxonomia on Github](https://github.com/Hexogrammer/Taxonomia)
 
 Guess history:
 ||`{table}`||"""
-        xerox.copy(message, xsel=True)
+        clipboard.copy(message, xsel=True)
         self.copy_button.setText("Copied")
         self.copy_button.setDisabled(True)
         QTimer.singleShot(1000, lambda: [self.copy_button.setText("Share on Discord"), self.copy_button.setDisabled(False)])
