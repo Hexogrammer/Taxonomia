@@ -200,7 +200,7 @@ class MyWidget(QWidget):
         self.enter_button.clicked.connect(self.on_enter)
         self.horizontal_layout.addWidget(self.enter_button)
 
-        self.hint_button = QPushButton("Hint")
+        self.hint_button = QPushButton("Hint (3 guesses)")
         self.hint_button.clicked.connect(self.give_hint)
         self.horizontal_layout.addWidget(self.hint_button)
 
@@ -313,7 +313,8 @@ class MyWidget(QWidget):
             self.text_edit.append("---------------------")
             self.text_edit.append("Try " + str(self.tries) + ": image hint")
             self.tries += 1
-            self.try_list.append([str(self.tries), "image hint", "", "", ""])
+            self.try_list.append([f"{str(self.tries)}-{str(self.tries + 3)}", "image hint", "", "", ""])
+            self.tries += 2
             self.dialog = HintDialog(self.last_correct.scientific_name, str(self.next_correct.rank)[5:], image_url)
             self.dialog.exec()
         else:
