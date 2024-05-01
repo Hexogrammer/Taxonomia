@@ -37,7 +37,6 @@ def get_image_hint(taxon):
     except:
         name = taxon.scientific_name
     observations = pyinaturalist.get_observations(taxon_name=taxon.scientific_name, photos=True)["results"]
-    print(name, len(observations))
     if observations:
         image_url = observations[randint(0, len(observations)-1)]["taxon"]["default_photo"]["medium_url"]
         return image_url
@@ -167,9 +166,6 @@ class HintDialog(QDialog):
         self.image_label = QLabel()
         self.image_label.setPixmap(pixmap)
         self.vert_layout.addWidget(self.image_label)
-        print(image_url)
-        print(pixmap)
-        print(self.image_label)
 
 class MyWidget(QWidget):
     def __init__(self):
