@@ -214,6 +214,7 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Taxonomia")
+        self.setGeometry(400, 200, 900, 700)
 
         self.tries = 0
         self.try_list = []
@@ -244,11 +245,14 @@ class MainWindow(QWidget):
         self.hint_button.clicked.connect(self.give_hint)
         self.horizontal_layout.addWidget(self.hint_button)
 
-        self.vert_layout.addLayout(self.horizontal_layout)
+        self.console = QLabel()
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidget(self.console)
+        self.scroll_area.setAlignment(Qt.AlignBottom)
+        self.vert_layout.addWidget(self.scroll_area)
+        self.console.adjustSize()
 
-        self.text_edit = QTextEdit()
-        self.text_edit.setReadOnly(True)
-        self.vert_layout.addWidget(self.text_edit)
+        self.vert_layout.addLayout(self.horizontal_layout)
 
         self.description_box = QTextEdit()
         self.description_box.setReadOnly(True)
@@ -258,7 +262,6 @@ class MainWindow(QWidget):
         # self.vert_layout.addWidget(self.giveup_button)
 
         self.setLayout(self.main_layout)
-        self.setGeometry(600, 200, 700, 700)
 
         self.dialog = OpeningDialog()
         self.dialog.exec()
@@ -283,6 +286,9 @@ class MainWindow(QWidget):
         self.root.addChild(QTreeWidgetItem([str(self.target.tax_id**2)]))
         self.tree.insertTopLevelItems(0, [self.root])
         self.tree.itemCollapsed.connect(self.on_item_collapsed)
+        self.tree.setCurrentItem(self.root.child(0))
+
+        self.line_edit.setFocus()
     def on_item_collapsed(item):
         item.setExpanded(True)
     def on_select(self):
@@ -307,47 +313,43 @@ class MainWindow(QWidget):
         except:
             self.enter_button.setDisabled(True)
     def on_enter(self):
-        self.text_edit.append("---------------------")
         guess = taxoniq.Taxon(scientific_name=self.line_edit.text())
         self.line_edit.clear()
         self.tries += 1
-        self.text_edit.append("Try " + str(self.tries) + ": " + taxon_to_message(guess))
 
         correct, wrong = lowest_commonality(self.target, guess)
-        self.text_edit.append("\n".join([taxon_to_message(tax) for tax in correct]))
         self.last_correct = correct[-1]
         if wrong:
             self.next_correct = wrong[0]
         self.last_ind = len(correct)-1
+        progress = self.last_ind - self.last_accuracy
 
         guess_item = QTreeWidgetItem([taxon_to_message(guess)])
         new_item = iterate(guess_item, self.root)
+        if new_item and progress > 0:
+            self.tree.setCurrentItem(new_item)
 
         accuracy_message = f"{str(len(self.last_correct.lineage))}/{str(len(self.target.lineage))}"
-        self.try_list.append([str(self.tries), taxon_to_message(guess), taxon_to_message(self.last_correct), str_with_plus(self.last_ind - self.last_accuracy)])
+        self.console.setText(self.console.text() + f"\nTry {self.tries}: {taxon_to_message(guess)} {str_with_plus(progress)}")
+        self.console.adjustSize()
+        self.try_list.append([str(self.tries), taxon_to_message(guess), taxon_to_message(self.last_correct), str_with_plus(progress)])
         if self.last_ind > self.last_accuracy:
             self.last_accuracy = self.last_ind
-        try:
-            self.text_edit.append(self.last_correct.description)
-        except:
-            pass
 
-        self.text_edit.append(f"accuracy: {accuracy_message} {str(self.last_correct.rank)[5:]}")
 
         if self.target == self.last_correct:
-            self.text_edit.append("CONGRATS, YOU DID IT!! (moron)")
-            self.text_edit.append("It took you " + str(self.tries) + " tries")
+            self.console.setText(self.console.text() + f"\nYou Win, it took you {self.tries} tries")
+            self.console.adjustSize()
             self.dialog = WinDialog(self.try_list, self.target)
             self.dialog.exec()
     def on_giveup(self):
-        self.text_edit.append("---------------------")
-        self.text_edit.append(f"genus-code: {str(self.target.tax_id ** 2)}")
-        self.text_edit.append("You failed, it was:")
+        self.console.setText(self.console.text() + "\n---------------------")
+        self.console.setText(self.console.text() + f"\ngenus-code: {str(self.target.tax_id ** 2)}")
+        self.console.setText(self.console.text() + "\nYou failed, it was:")
+        self.console.adjustSize()
         for taxon in reversed(self.target.lineage):
-            try:
-                self.text_edit.append(str(taxon.rank)[5:] + ": " + taxon.scientific_name + " (" + taxon.common_name + ")")
-            except:
-                self.text_edit.append(str(taxon.rank)[5:] + ": " + taxon.scientific_name)
+            self.console.setText(self.console.text() + f"\n{taxon_to_message(taxon)}")
+        self.console.adjustSize()
         self.dialog = WinDialog(self.try_list, self.target)
         self.dialog.exec()
     def open_wiki(self):
@@ -358,23 +360,24 @@ class MainWindow(QWidget):
                 try:
                     webbrowser.open(self.selection.wikidata_url)
                 except:
-                    self.text_edit.append("Sry, no Wiki article available")
+                    self.console.setText(self.console.text() + "\nNo wiki article available")
+        self.console.adjustSize()
     def give_hint(self):
         for correct in list(reversed(self.target.lineage))[self.last_ind+1:]:
             image_url = get_image_hint(correct)
             if image_url:
                 break
         if image_url:
-            self.text_edit.append("---------------------")
             self.tries += 1
-            self.text_edit.append(f"Try {str(self.tries)}-{str(self.tries + 2)}: image hint")
+            self.console.setText(self.console.text() + f"\nTry {str(self.tries)}-{str(self.tries + 2)}: image hint")
             self.try_list.append([f"{str(self.tries)}-{str(self.tries + 2)}", "image hint", taxon_to_message(self.last_correct), "0"])
             self.tries += 2
             self.dialog = HintDialog(self.last_correct.scientific_name, str(self.next_correct.rank)[5:], image_url)
             self.dialog.setWindowModality(Qt.NonModal)
             self.dialog.show()
         else:
-            self.text_edit.append("sry, no images available")
+            self.console.setText(self.console.text() + "\nNo images available")
+        self.console.adjustSize()
 
 app = QApplication(sys.argv)
 widget = MainWindow()
