@@ -188,7 +188,7 @@ Download [Taxonomia on Github](https://github.com/Hexogrammer/Taxonomia)
 
 Guess history:
 ||`{table}`||"""
-        clipboard.copy(message, xsel=True)
+        clipboard.copy(message)
         self.copy_button.setText("Copied")
         self.copy_button.setDisabled(True)
         QTimer.singleShot(1000, lambda: [self.copy_button.setText("Share on Discord"), self.copy_button.setDisabled(False)])
@@ -200,7 +200,7 @@ class HintDialog(QDialog):
         self.setWindowModality(Qt.NonModal)
         self.vert_layout = QVBoxLayout()
         self.setLayout(self.vert_layout)
-        self.vert_layout.addWidget(QLabel(f"Random species of the correct {next_correct_rank} (after {last_correct_name}).\nNO IMAGE SEARCH!!!"))
+        self.vert_layout.addWidget(QLabel(f"Random species of the correct {next_correct_rank} (after {last_correct_name}).\nNO REVERSE IMAGE SEARCH!!!"))
 
         data = urllib.request.urlopen(image_url).read()
         pixmap = QPixmap()
