@@ -276,6 +276,7 @@ class MainWindow(QWidget):
 
         self.wiki_button = QPushButton("Open on Wikipedia")
         self.wiki_button.clicked.connect(self.open_wiki)
+        self.wiki_button.setDisabled(True)
         self.vert_layout2.addWidget(self.wiki_button)
 
         self.root = QTreeWidgetItem(["root"])
@@ -289,8 +290,10 @@ class MainWindow(QWidget):
         if self.selection == self.target:
             self.selection = None
             self.description_box.setText("<b>Unknown</b>\nGuess scientific Genus names to find out what hides behind this code")
+            self.wiki_button.setDisabled(True)
         else:
             self.description_box.setText("\n".join([taxon_to_message(i) for i in reversed(self.selection.lineage)]))
+            self.wiki_button.setDisabled(False)
             try:
                 self.description_box.append(self.selection.description)
             except:
@@ -348,13 +351,14 @@ class MainWindow(QWidget):
         self.dialog = WinDialog(self.try_list, self.target)
         self.dialog.exec()
     def open_wiki(self):
-        try:
-            webbrowser.open(wikipedia.page(self.last_correct.scientific_name, auto_suggest=False).url)
-        except:
+        if self.selection:
             try:
-                webbrowser.open(self.last_correct.wikidata_url)
+                webbrowser.open(wikipedia.page(self.selection.scientific_name, auto_suggest=False).url)
             except:
-                self.text_edit.append("Sry, no Wiki article available")
+                try:
+                    webbrowser.open(self.selection.wikidata_url)
+                except:
+                    self.text_edit.append("Sry, no Wiki article available")
     def give_hint(self):
         for correct in list(reversed(self.target.lineage))[self.last_ind+1:]:
             image_url = get_image_hint(correct)
