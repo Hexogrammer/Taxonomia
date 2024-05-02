@@ -145,6 +145,7 @@ class WinDialog(QDialog):
         self.setLayout(self.vert_layout)
 
         self.try_list = try_list
+        self.tries = self.try_list[-1][0]
         self.solution = solution
 
         self.text_edit = QTextEdit()
@@ -159,7 +160,7 @@ class WinDialog(QDialog):
 
         message = f"""<table style="border: 1px solid black; border-collapse: collapse;">
                     <caption style="font-size: 40px; font-weight: bold;" align="center">You Win!</caption>
-                    <p align="center">Genus-code: {str(self.solution.tax_id**2)} \nYou needed {len(self.try_list)} tries.</p>
+                    <p align="center">Genus-code: {self.solution.tax_id**2} \nYou needed {self.tries} tries.</p>
                       <tr>
                         <th style="border: 1px solid black; padding: 8px;">Try Nr.</th>
                         <th style="border: 1px solid black; padding: 8px;">Tried Name</th>
@@ -183,7 +184,7 @@ class WinDialog(QDialog):
         genus_code = str(self.solution.tax_id**2)
         message = f"""I won Taxonomia!!! 
 genus-code: **{genus_code}**
-It took me **{len(self.try_list)} tries**. can you beat me?
+It took me **{self.tries} tries**. can you beat me?
 Download [Taxonomia on Github](https://github.com/Hexogrammer/Taxonomia)
 
 Guess history:
