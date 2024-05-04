@@ -31,10 +31,13 @@ def lowest_commonality(taxon1, taxon2):
     wrong = list(reversed(taxon1.lineage))[ind:]
     return (correct, wrong)
 def taxon_to_message(taxon):
+    rank = f"{taxon.rank.name}: "
+    if rank == "no_rank: ":
+        rank = ""
     try:
-        guess_message = f"{str(taxon.rank)[5:]}: {taxon.scientific_name} ({taxon.common_name})"
+        guess_message = f"{rank + taxon.scientific_name} ({taxon.common_name})"
     except:
-        guess_message = f"{str(taxon.rank)[5:]}: {taxon.scientific_name}"
+        guess_message = rank + taxon.scientific_name
     return guess_message
 def good_lineage(taxon):
     dictionary = {}
@@ -247,6 +250,7 @@ class AnalyzeDialog(QDialog):
         self.setLayout(self.vert_layout)
         self.ranks = [taxoniq.Rank(value=i).name for i in range(1, 46)]
         self.selection = selection
+        self.success = False
 
         self.hori_layout1 = QHBoxLayout()
         self.line_edit = QLineEdit()
@@ -279,7 +283,6 @@ class AnalyzeDialog(QDialog):
         self.timer.timeout.connect(self.add_sample)
         self.timer.start(1)
     def add_sample(self):
-        print(len(self.samples))
         lin = good_lineage(get_random_taxon(self.selection))
         self.progress_bar.setValue(len(self.samples))
         if self.level in lin:
@@ -290,6 +293,7 @@ class AnalyzeDialog(QDialog):
             self.timer.stop()
             self.finish_analysis()
     def finish_analysis(self):
+        self.success = True
         data = dict(sorted(Counter(self.samples).items(), key=lambda x: x[1], reverse=True))
         # fig = plt.figure()
         # pie_chart = plt.pie(data.values(), labels=data.keys())
@@ -304,6 +308,7 @@ class AnalyzeDialog(QDialog):
         dialog_layout.addWidget(pie_chart_widget)
         dialog.setLayout(dialog_layout)
         dialog.exec_()
+        self.close()
     def on_text_update(self):
         if self.line_edit.text() in self.ranks:
             self.button.setDisabled(False)
@@ -510,10 +515,14 @@ class MainWindow(QWidget):
         self.dialog = AnalyzeDialog(self.selection)
         self.dialog.setWindowModality(Qt.NonModal)
         self.dialog.show()
-        self.tries += 1
-        self.console.setText(self.console.text() + f"\nTry {self.tries}: {taxon_to_message(self.selection)} analysis")
-        self.try_list.append([f"{self.tries}", f"{taxon_to_message(self.selection)} analysis", taxon_to_message(self.last_correct), "0"])
-        self.console.adjustSize()
+        self.dialog.finished.connect(self.dialog_closed)
+    def dialog_closed(self):
+        self.dialog.timer.stop()
+        if self.dialog.success:
+            self.tries += 1
+            self.console.setText(self.console.text() + f"\nTry {self.tries}: {taxon_to_message(self.selection)} -> {self.dialog.level} analysis")
+            self.try_list.append([f"{self.tries}", f"{taxon_to_message(self.selection)} -> {self.dialog.level} analysis", taxon_to_message(self.last_correct), "0"])
+            self.console.adjustSize()
 
 app = QApplication(sys.argv)
 widget = MainWindow()
