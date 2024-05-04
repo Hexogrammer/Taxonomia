@@ -279,6 +279,7 @@ class AnalyzeDialog(QDialog):
         self.timer.timeout.connect(self.add_sample)
         self.timer.start(1)
     def add_sample(self):
+        print(len(self.samples))
         lin = good_lineage(get_random_taxon(self.selection))
         self.progress_bar.setValue(len(self.samples))
         if self.level in lin:
@@ -321,7 +322,7 @@ class MainWindow(QWidget):
         self.next_correct = None
         self.last_correct = None
         self.last_ind = 0
-        self.last_accuracy = 1
+        self.last_accuracy = 0
 
         self.main_layout = QHBoxLayout()
         self.vert_layout = QVBoxLayout()
