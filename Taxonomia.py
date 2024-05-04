@@ -282,6 +282,11 @@ class MainWindow(QWidget):
         self.wiki_button.setDisabled(True)
         self.vert_layout2.addWidget(self.wiki_button)
 
+        self.iNat_button = QPushButton("Open on iNaturalist")
+        self.iNat_button.clicked.connect(self.open_iNat)
+        self.iNat_button.setDisabled(True)
+        self.vert_layout2.addWidget(self.iNat_button)
+
         self.root = QTreeWidgetItem(["root"])
         self.root.addChild(QTreeWidgetItem([str(self.target.tax_id**2)]))
         self.tree.insertTopLevelItems(0, [self.root])
@@ -297,9 +302,11 @@ class MainWindow(QWidget):
             self.selection = None
             self.description_box.setText("<b>Unknown</b>\nGuess scientific Genus names to find out what hides behind this code")
             self.wiki_button.setDisabled(True)
+            self.iNat_button.setDisabled(True)
         else:
             self.description_box.setText("\n".join([taxon_to_message(i) for i in reversed(self.selection.lineage)]))
             self.wiki_button.setDisabled(False)
+            self.iNat_button.setDisabled(False)
             try:
                 self.description_box.append(self.selection.description)
             except:
@@ -361,6 +368,18 @@ class MainWindow(QWidget):
                     webbrowser.open(self.selection.wikidata_url)
                 except:
                     self.console.setText(self.console.text() + "\nNo wiki article available")
+        self.console.adjustSize()
+    def open_iNat(self):
+        if self.selection:
+            search = pyinaturalist.get_taxa(q=self.selection.scientific_name)["results"]
+            if search:
+                id = search[0]["id"]
+                try:
+                    webbrowser.open(f"https://www.inaturalist.org/observations?place_id=any&taxon_id={id}&view=species")
+                except:
+                    pass
+            else:
+                self.console.setText(self.console.text() + "\nNot available on iNaturalist")
         self.console.adjustSize()
     def give_hint(self):
         for correct in list(reversed(self.target.lineage))[self.last_ind+1:]:
