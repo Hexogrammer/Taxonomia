@@ -274,8 +274,10 @@ class AnalyzeDialog(QDialog):
         self.samples = []
         self.timer = QTimer()
         self.timer.timeout.connect(self.add_sample)
-        self.timer.start(5)
+        self.timer.start(10)
+        # print("timer started")
     def add_sample(self):
+        # print(len(self.samples))
         lin = good_lineage(get_random_taxon(self.selection))
         self.progress_bar.setValue(len(self.samples))
         if self.level in lin:
@@ -499,6 +501,10 @@ class MainWindow(QWidget):
         self.dialog = AnalyzeDialog(self.selection)
         self.dialog.setWindowModality(Qt.NonModal)
         self.dialog.show()
+        self.tries += 1
+        self.console.setText(self.console.text() + f"\nTry {self.tries}: {taxon_to_message(self.selection)} analysis")
+        self.try_list.append([f"{self.tries}", f"{taxon_to_message(self.selection)} analysis", taxon_to_message(self.last_correct), "0"])
+        self.console.adjustSize()
 
 app = QApplication(sys.argv)
 widget = MainWindow()
