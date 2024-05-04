@@ -5,11 +5,16 @@ from math import sqrt
 from time import sleep
 from tabulate import tabulate
 import urllib
+from collections import Counter
 
 import taxoniq
 import pyinaturalist
 import wikipedia
 import webbrowser
+
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 from PyQt5.QtCore import Qt, QTimer, QUrl
 from PyQt5.QtWidgets import *
@@ -31,6 +36,21 @@ def taxon_to_message(taxon):
     except:
         guess_message = f"{str(taxon.rank)[5:]}: {taxon.scientific_name}"
     return guess_message
+def good_lineage(taxon):
+    dictionary = {}
+    for clade in taxon.lineage:
+        dictionary[clade.rank.name] = clade
+    return dictionary
+def get_random_taxon(parent=taxoniq.Taxon(1)):
+    done = False
+    while not done:
+        try:
+            taxon = taxoniq.Taxon(randint(0, 100000000))
+            if taxon.rank == taxoniq.Rank.genus and good_lineage(taxon)[parent.rank.name] == parent:
+                done = True
+        except:
+            done = False
+    return taxon
 def str_with_plus(num):
     if num > 0:
         return '+' + str(num)
@@ -123,18 +143,7 @@ class OpeningDialog(QDialog):
     def on_enter(self):
         self.close()
     def on_random(self):
-        done = False
-        fail_count = 0
-        while not done:
-            fail_count += 1
-            try:
-                self.target = taxoniq.Taxon(randint(0, 100000000))
-                if self.target.rank == taxoniq.Rank.genus:
-                    sci = self.target.scientific_name
-                    com = self.target.common_name
-                    done = True
-            except:
-                done = False
+        self.target = get_random_taxon()
         self.close()
 
 class WinDialog(QDialog):
@@ -209,6 +218,87 @@ class HintDialog(QDialog):
         self.image_label = QLabel()
         self.image_label.setPixmap(pixmap)
         self.vert_layout.addWidget(self.image_label)
+
+class PieChartWidget(QWidget):
+    def __init__(self, data):
+        super().__init__()
+
+        self.figure = plt.figure(figsize=(5, 5))
+        self.canvas = FigureCanvas(self.figure)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.canvas)
+        self.setLayout(layout)
+
+        self.plot_pie_chart(data)
+    def plot_pie_chart(self, data):
+        self.figure.clear()
+        self.figure.set_constrained_layout(True)
+        ax = self.figure.add_subplot(111)
+        ax.set_aspect('equal')
+        ax.pie(data.values(), labels=data.keys(), autopct='%1.1f%%', startangle=90)
+
+class AnalyzeDialog(QDialog):
+    def __init__(self, selection):
+        super().__init__()
+        self.setWindowTitle("Analyze")
+        self.setWindowModality(Qt.NonModal)
+        self.vert_layout = QVBoxLayout()
+        self.setLayout(self.vert_layout)
+        self.selection = selection
+
+        self.hori_layout1 = QHBoxLayout()
+        self.line_edit = QLineEdit()
+        self.line_edit_label = QLabel("Level")
+        self.hori_layout1.addWidget(self.line_edit_label)
+        self.hori_layout1.addWidget(self.line_edit)
+        self.vert_layout.addLayout(self.hori_layout1)
+        self.hori_layout2 = QHBoxLayout()
+        self.spin_box = QSpinBox()
+        self.spin_box.setMaximum(10000)
+        self.spin_box.setValue(100)
+        self.spin_box_label = QLabel("Sample size")
+        self.hori_layout2.addWidget(self.spin_box_label)
+        self.hori_layout2.addWidget(self.spin_box)
+        self.vert_layout.addLayout(self.hori_layout2)
+        self.button = QPushButton("Analyze")
+        self.button.pressed.connect(self.start_analysis)
+        self.vert_layout.addWidget(self.button)
+        self.progress_bar = QProgressBar()
+        self.vert_layout.addWidget(self.progress_bar)
+    def start_analysis(self):
+        self.button.setDisabled(True)
+        self.level = self.line_edit.text()
+        self.sample_size = self.spin_box.value()
+        self.progress_bar.setMaximum(self.sample_size)
+        self.samples = []
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.add_sample)
+        self.timer.start(5)
+    def add_sample(self):
+        lin = good_lineage(get_random_taxon(self.selection))
+        self.progress_bar.setValue(len(self.samples))
+        if self.level in lin:
+            self.samples.append(taxon_to_message(lin[self.level]))
+        if len(self.samples) >= self.sample_size:
+            self.timer.stop()
+            self.finish_analysis()
+    def finish_analysis(self):
+        data = dict(sorted(Counter(self.samples).items(), key=lambda x: x[1], reverse=True))
+        # fig = plt.figure()
+        # pie_chart = plt.pie(data.values(), labels=data.keys())
+        # plt.gcf().canvas.manager.set_window_title(f"{self.level} distributions of {taxon_to_message(self.selection)}")
+        # plt.show(block=False)
+        dialog = QDialog()
+        dialog.setWindowTitle(f"{self.level} distributions of {taxon_to_message(self.selection)}")
+        dialog.setWindowModality(Qt.NonModal)
+
+        pie_chart_widget = PieChartWidget(data)
+        dialog_layout = QVBoxLayout()
+        dialog_layout.addWidget(pie_chart_widget)
+        dialog.setLayout(dialog_layout)
+        dialog.exec_()
+
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -287,6 +377,11 @@ class MainWindow(QWidget):
         self.iNat_button.setDisabled(True)
         self.vert_layout2.addWidget(self.iNat_button)
 
+        self.analyze_button = QPushButton("Analyze (1 guess)")
+        self.analyze_button.clicked.connect(self.analyze)
+        self.analyze_button.setDisabled(True)
+        self.vert_layout2.addWidget(self.analyze_button)
+
         self.root = QTreeWidgetItem(["root"])
         self.root.addChild(QTreeWidgetItem([str(self.target.tax_id**2)]))
         self.tree.insertTopLevelItems(0, [self.root])
@@ -303,10 +398,13 @@ class MainWindow(QWidget):
             self.description_box.setText("<b>Unknown</b>\nGuess scientific Genus names to find out what hides behind this code")
             self.wiki_button.setDisabled(True)
             self.iNat_button.setDisabled(True)
+            self.analyze_button.setDisabled(True)
+
         else:
             self.description_box.setText("\n".join([taxon_to_message(i) for i in reversed(self.selection.lineage)]))
             self.wiki_button.setDisabled(False)
             self.iNat_button.setDisabled(False)
+            self.analyze_button.setDisabled(False)
             try:
                 self.description_box.append(self.selection.description)
             except:
@@ -397,6 +495,10 @@ class MainWindow(QWidget):
         else:
             self.console.setText(self.console.text() + "\nNo images available")
         self.console.adjustSize()
+    def analyze(self):
+        self.dialog = AnalyzeDialog(self.selection)
+        self.dialog.setWindowModality(Qt.NonModal)
+        self.dialog.show()
 
 app = QApplication(sys.argv)
 widget = MainWindow()
