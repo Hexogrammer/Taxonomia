@@ -245,10 +245,12 @@ class AnalyzeDialog(QDialog):
         self.setWindowModality(Qt.NonModal)
         self.vert_layout = QVBoxLayout()
         self.setLayout(self.vert_layout)
+        self.ranks = [taxoniq.Rank(value=i).name for i in range(1, 46)]
         self.selection = selection
 
         self.hori_layout1 = QHBoxLayout()
         self.line_edit = QLineEdit()
+        self.line_edit.textChanged.connect(self.on_text_update)
         self.line_edit_label = QLabel("Level")
         self.hori_layout1.addWidget(self.line_edit_label)
         self.hori_layout1.addWidget(self.line_edit)
@@ -263,6 +265,7 @@ class AnalyzeDialog(QDialog):
         self.vert_layout.addLayout(self.hori_layout2)
         self.button = QPushButton("Analyze")
         self.button.pressed.connect(self.start_analysis)
+        self.button.setDisabled(True)
         self.vert_layout.addWidget(self.button)
         self.progress_bar = QProgressBar()
         self.vert_layout.addWidget(self.progress_bar)
@@ -274,14 +277,14 @@ class AnalyzeDialog(QDialog):
         self.samples = []
         self.timer = QTimer()
         self.timer.timeout.connect(self.add_sample)
-        self.timer.start(10)
-        # print("timer started")
+        self.timer.start(1)
     def add_sample(self):
-        # print(len(self.samples))
         lin = good_lineage(get_random_taxon(self.selection))
         self.progress_bar.setValue(len(self.samples))
         if self.level in lin:
             self.samples.append(taxon_to_message(lin[self.level]))
+        else:
+            self.samples.append(f"No {self.level}")
         if len(self.samples) >= self.sample_size:
             self.timer.stop()
             self.finish_analysis()
@@ -300,6 +303,11 @@ class AnalyzeDialog(QDialog):
         dialog_layout.addWidget(pie_chart_widget)
         dialog.setLayout(dialog_layout)
         dialog.exec_()
+    def on_text_update(self):
+        if self.line_edit.text() in self.ranks:
+            self.button.setDisabled(False)
+        else:
+            self.button.setDisabled(True)
 
 
 class MainWindow(QWidget):
