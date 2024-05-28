@@ -46,14 +46,19 @@ def good_lineage(taxon):
     return dictionary
 def get_random_taxon(parent=taxoniq.Taxon(1)):
     done = False
-    while not done:
+    for i in range(100000):
         try:
-            taxon = taxoniq.Taxon(randint(0, 100000000))
+            taxon = taxoniq.Taxon(randint(0, 10000000000))
             if taxon.rank == taxoniq.Rank.genus and good_lineage(taxon)[parent.rank.name] == parent:
                 done = True
+                break
         except:
             done = False
-    return taxon
+    if done:
+        return taxon
+    else:
+        print(f"TIME OUT")
+        return parent
 def str_with_plus(num):
     if num > 0:
         return '+' + str(num)
@@ -274,6 +279,7 @@ class AnalyzeDialog(QDialog):
         self.progress_bar = QProgressBar()
         self.vert_layout.addWidget(self.progress_bar)
     def start_analysis(self):
+        #print("start_analysis")
         self.button.setDisabled(True)
         self.level = self.line_edit.text()
         self.sample_size = self.spin_box.value()
@@ -283,6 +289,7 @@ class AnalyzeDialog(QDialog):
         self.timer.timeout.connect(self.add_sample)
         self.timer.start(1)
     def add_sample(self):
+        #print("add_sample")
         lin = good_lineage(get_random_taxon(self.selection))
         self.progress_bar.setValue(len(self.samples))
         if self.level in lin:
@@ -293,6 +300,7 @@ class AnalyzeDialog(QDialog):
             self.timer.stop()
             self.finish_analysis()
     def finish_analysis(self):
+        #print("finish_analysis")
         self.success = True
         data = dict(sorted(Counter(self.samples).items(), key=lambda x: x[1], reverse=True))
         # fig = plt.figure()

@@ -3,6 +3,7 @@ from random import randint
 from math import sqrt
 from matplotlib import pyplot as plt
 from collections import Counter
+from multiprocess import Process, Manager, Pool
 def taxon_to_message(taxon):
     try:
         guess_message = f"{taxon.rank.name}: {taxon.scientific_name} ({taxon.common_name})"
@@ -16,11 +17,11 @@ def good_lineage(taxon):
         dictionary[clade.rank.name] = clade
     return dictionary
 
-def get_random_taxon(parent):
+def get_random_taxon(parent=taxoniq.Taxon(1)):
     done = False
     while not done:
         try:
-            taxon = taxoniq.Taxon(randint(0, 100000000))
+            taxon = taxoniq.Taxon(randint(0, 1000000))
             if taxon.rank == taxoniq.Rank.genus and good_lineage(taxon)[parent.rank.name] == parent:
                 done = True
         except:
@@ -52,4 +53,41 @@ def analyze(mode, level, sample_size=100, parent=None, sample_list=[]):
         plt.gcf().canvas.set_window_title(f"{level} distributions of {taxon_to_message(parent)}")
     plt.show()
 
-analyze("children", "order", parent=taxoniq.Taxon(scientific_name="Insecta"))
+def get_info_density(taxon, accuracy=500):
+    info_density = 0
+    for n in range(1, accuracy):
+        for level in taxon.lineage:
+            new_genus = get_random_taxon()
+            if level in new_genus.lineage:
+                info_density += 1
+        #print(round(info_density / n, 2))
+    return round(info_density / accuracy, 1)
+genera = {}
+record_density = 10.4
+record_genus = ""
+
+def process_code():
+    global record_genus
+    global record_density
+    global genera
+    print("Starting process_code")
+    for i in range(100):
+        genus = get_random_taxon()
+        info_density = get_info_density(genus)
+        genera[taxon_to_message(genus)] = info_density
+        if info_density > record_density:
+            record_density = info_density
+            record_genus = taxon_to_message(genus)
+            print(f"{record_density} - {record_genus}")
+
+if __name__ == '__main__':
+    with Manager() as manager:
+        processes = [Process(target=process_code) for i in range(15)]
+        for p in processes:
+            p.start()
+
+while True:
+    if input('type "end" to end') == "end":
+        break
+    print(dict(sorted(genera.items(), key=lambda item: item[1])))
+# print(get_info_density(taxoniq.Taxon(scientific_name="Heliothis"), 1000))
